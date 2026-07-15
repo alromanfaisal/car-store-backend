@@ -26,7 +26,10 @@ func main() {
 	mux.HandleFunc("/api/login", handlers.LoginHandler)
 	mux.HandleFunc("/api/profile", middleware.RequireAuth(handlers.ProfileHandler))
 
-	// Cart routes — সবগুলো protected (লগইন লাগবে)
+	// Products — এগুলো public, লগইন ছাড়াই দেখা যাবে
+	mux.HandleFunc("/api/products", handlers.GetProductsHandler)
+	mux.HandleFunc("/api/products/", handlers.GetProductByIDHandler)
+
 	mux.HandleFunc("/api/cart", middleware.RequireAuth(func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case http.MethodGet:
