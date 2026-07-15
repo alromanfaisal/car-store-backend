@@ -26,7 +26,6 @@ func main() {
 	mux.HandleFunc("/api/login", handlers.LoginHandler)
 	mux.HandleFunc("/api/profile", middleware.RequireAuth(handlers.ProfileHandler))
 
-	// Products — এগুলো public, লগইন ছাড়াই দেখা যাবে
 	mux.HandleFunc("/api/products", handlers.GetProductsHandler)
 	mux.HandleFunc("/api/products/", handlers.GetProductByIDHandler)
 
@@ -43,6 +42,17 @@ func main() {
 		}
 	}))
 	mux.HandleFunc("/api/cart/", middleware.RequireAuth(handlers.CartItemRouter))
+
+	mux.HandleFunc("/api/orders", middleware.RequireAuth(func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodGet:
+			handlers.GetOrdersHandler(w, r)
+		case http.MethodPost:
+			handlers.CreateOrderHandler(w, r)
+		default:
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		}
+	}))
 
 	handler := middleware.EnableCORS(mux)
 
