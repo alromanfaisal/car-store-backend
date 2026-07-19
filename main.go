@@ -24,7 +24,18 @@ func main() {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/api/signup", handlers.SignupHandler)
 	mux.HandleFunc("/api/login", handlers.LoginHandler)
-	mux.HandleFunc("/api/profile", middleware.RequireAuth(handlers.ProfileHandler))
+
+	mux.HandleFunc("/api/me", middleware.RequireAuth(func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodGet:
+			handlers.GetMyProfileHandler(w, r)
+		case http.MethodPut:
+			handlers.UpdateMyProfileHandler(w, r)
+		default:
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		}
+	}))
+	mux.HandleFunc("/api/me/password", middleware.RequireAuth(handlers.UpdateMyPasswordHandler))
 
 	mux.HandleFunc("/api/products", handlers.GetProductsHandler)
 	mux.HandleFunc("/api/products/", handlers.GetProductByIDHandler)
