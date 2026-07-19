@@ -6,7 +6,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"strings"
-
+	"log"
 	"car-store-backend/db"
 )
 
@@ -23,13 +23,14 @@ type Car struct {
 // GET /api/products — সব গাড়ির লিস্ট
 func GetProductsHandler(w http.ResponseWriter, r *http.Request) {
 	rows, err := db.Pool.Query(
-		context.Background(),
-		"SELECT id, name, description, image_url, price, discount_price, is_new FROM cars ORDER BY id",
-	)
-	if err != nil {
-		http.Error(w, "Failed to fetch products", http.StatusInternalServerError)
-		return
-	}
+    context.Background(),
+    "SELECT id, name, description, image_url, price, discount_price, is_new FROM cars ORDER BY id",
+)
+if err != nil {
+    log.Println("GetProductsHandler query error:", err)
+    http.Error(w, "Failed to fetch products", http.StatusInternalServerError)
+    return
+}
 	defer rows.Close()
 
 	cars := []Car{}
