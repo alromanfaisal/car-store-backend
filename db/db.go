@@ -1,4 +1,4 @@
-//car-store-backend/db/db.go
+// db/db.go
 package db
 
 import (
@@ -20,9 +20,14 @@ func Connect() {
 	dbPassword := os.Getenv("DB_PASSWORD")
 	dbName := os.Getenv("DB_NAME")
 
+	sslMode := os.Getenv("DB_SSL_MODE")
+	if sslMode == "" {
+		sslMode = "disable" // লোকাল ডেভেলপমেন্টে ডিফল্ট
+	}
+
 	connString := fmt.Sprintf(
-		"postgres://%s:%s@%s:%s/%s",
-		dbUser, dbPassword, dbHost, dbPort, dbName,
+		"postgres://%s:%s@%s:%s/%s?sslmode=%s",
+		dbUser, dbPassword, dbHost, dbPort, dbName, sslMode,
 	)
 
 	pool, err := pgxpool.New(context.Background(), connString)
