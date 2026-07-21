@@ -1,12 +1,21 @@
 // middleware/cors.go
 package middleware
 
-import "net/http"
+import (
+	"net/http"
+	"os"
+)
 
-// EnableCORS — Next.js (localhost:3000) থেকে আসা request গুলো allow করার জন্য
+// EnableCORS — Frontend থেকে আসা request গুলো allow করার জন্য
+// FRONTEND_URL environment variable থেকে origin পড়ে, না থাকলে লোকাল ডেভেলপমেন্টের ডিফল্ট ব্যবহার করে
 func EnableCORS(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "http://localhost:3000")
+		allowedOrigin := os.Getenv("FRONTEND_URL")
+		if allowedOrigin == "" {
+			allowedOrigin = "http://localhost:3000"
+		}
+
+		w.Header().Set("Access-Control-Allow-Origin", allowedOrigin)
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
 
