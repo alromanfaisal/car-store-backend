@@ -23,6 +23,9 @@ func main() {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/api/signup", handlers.SignupHandler)
 	mux.HandleFunc("/api/login", handlers.LoginHandler)
+	// main.go এর mux অংশে যোগ করুন
+	mux.HandleFunc("/api/forgot-password", handlers.ForgotPasswordHandler)
+	mux.HandleFunc("/api/reset-password", handlers.ResetPasswordHandler)
 
 	mux.HandleFunc("/api/me", middleware.RequireAuth(func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
