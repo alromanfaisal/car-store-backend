@@ -2,13 +2,15 @@
 package handlers
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io"
+	"log"
 	"net/http"
-	"net/smtp"
 	"os"
 	"time"
 
@@ -26,25 +28,49 @@ func generateResetToken() (string, error) {
 	return hex.EncodeToString(bytes), nil
 }
 
-// Gmail SMTP দিয়ে email পাঠানোর ফাংশন
+// Resend API দিয়ে email পাঠানোর ফাংশন
 func sendResetEmail(toEmail, resetLink string) error {
-	smtpHost := os.Getenv("SMTP_HOST")
-	smtpPort := os.Getenv("SMTP_PORT")
-	smtpEmail := os.Getenv("SMTP_EMAIL")
-	smtpPassword := os.Getenv("SMTP_PASSWORD")
+	apiKey := os.Getenv("RESEND_API_KEY")
 
-	subject := "Reset Your Password"
-	body := fmt.Sprintf(
-		"You requested a password reset.\n\nClick the link below to set a new password (valid for 15 minutes):\n\n%s\n\nIf you didn't request this, you can safely ignore this email.",
-		resetLink,
-	)
+	htmlBody := fmt.Sprintf(`
+		<p>You requested a password reset.</p>
+		<p>Click the link below to set a new password (valid for 15 minutes):</p>
+		<p><a href="%s">%s</a></p>
+		<p>If you didn't request this, you can safely ignore this email.</p>
+	`, resetLink, resetLink)
 
-	message := []byte(fmt.Sprintf("Subject: %s\r\n\r\n%s", subject, body))
+	payload := map[string]interface{}{
+		"from":    "Car Store <onboarding@resend.dev>",
+		"to":      []string{toEmail},
+		"subject": "Reset Your Password",
+		"html":    htmlBody,
+	}
 
-	auth := smtp.PlainAuth("", smtpEmail, smtpPassword, smtpHost)
-	addr := fmt.Sprintf("%s:%s", smtpHost, smtpPort)
+	jsonPayload, err := json.Marshal(payload)
+	if err != nil {
+		return err
+	}
 
-	return smtp.SendMail(addr, auth, smtpEmail, []string{toEmail}, message)
+	req, err := http.NewRequest("POST", "https://api.resend.com/emails", bytes.NewBuffer(jsonPayload))
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Authorization", "Bearer "+apiKey)
+	req.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= 400 {
+		bodyBytes, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("resend API returned status %d: %s", resp.StatusCode, string(bodyBytes))
+	}
+
+	return nil
 }
 
 type ForgotPasswordRequest struct {
@@ -65,12 +91,9 @@ func ForgotPasswordHandler(w http.ResponseWriter, r *http.Request) {
 
 	ctx := context.Background()
 
-	// ইউজার আছে কিনা খোঁজা
 	var userID int
 	err := db.Pool.QueryRow(ctx, "SELECT id FROM users WHERE email = $1", req.Email).Scan(&userID)
 	if err != nil {
-		// নিরাপত্তার জন্য — email না থাকলেও একই সফল মেসেজ দেখাই,
-		// যাতে কেউ এটা দিয়ে বুঝতে না পারে কোন email সিস্টেমে registered আছে
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]string{
 			"message": "If an account with that email exists, a reset link has been sent.",
@@ -102,6 +125,7 @@ func ForgotPasswordHandler(w http.ResponseWriter, r *http.Request) {
 	resetLink := fmt.Sprintf("%s/reset-password?token=%s", frontendURL, token)
 
 	if err := sendResetEmail(req.Email, resetLink); err != nil {
+		log.Println("sendResetEmail error:", err)
 		http.Error(w, "Failed to send reset email", http.StatusInternalServerError)
 		return
 	}
@@ -160,7 +184,6 @@ func ResetPasswordHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// ব্যবহৃত token মুছে ফেলা, যাতে একই লিংক দ্বিতীয়বার ব্যবহার না করা যায়
 	_, _ = db.Pool.Exec(ctx, "DELETE FROM password_reset_tokens WHERE token = $1", req.Token)
 
 	w.Header().Set("Content-Type", "application/json")

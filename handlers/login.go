@@ -14,6 +14,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
+
 type LoginRequest struct {
 	Email    string `json:"email"`
 	Password string `json:"password"`
@@ -22,9 +23,10 @@ type LoginRequest struct {
 type LoginResponse struct {
 	Token string `json:"token"`
 	User  struct {
-		ID    int    `json:"id"`
-		Name  string `json:"name"`
-		Email string `json:"email"`
+		ID      int    `json:"id"`
+		Name    string `json:"name"`
+		Email   string `json:"email"`
+		IsAdmin bool   `json:"is_admin"`
 	} `json:"user"`
 }
 
@@ -46,14 +48,15 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// ডাটাবেজ থেকে এই email এর ইউজার খোঁজা
-	var userID int
+		var userID int
 	var name string
 	var passwordHash string
+	var isAdmin bool
 	err := db.Pool.QueryRow(
 		context.Background(),
-		"SELECT id, name, password_hash FROM users WHERE email = $1",
+		"SELECT id, name, password_hash, is_admin FROM users WHERE email = $1",
 		req.Email,
-	).Scan(&userID, &name, &passwordHash)
+	).Scan(&userID, &name, &passwordHash, &isAdmin)
 
 	if err != nil {
 		// ইচ্ছাকৃতভাবে জেনেরিক error দিচ্ছি — এটা যেন কেউ বুঝতে না পারে
@@ -89,6 +92,7 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 	resp.User.ID = userID
 	resp.User.Name = name
 	resp.User.Email = req.Email
+	resp.User.IsAdmin = isAdmin
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(resp)

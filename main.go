@@ -54,6 +54,8 @@ func main() {
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		}
 	}))
+	mux.HandleFunc("/api/admin/cars", middleware.RequireAuth(middleware.RequireAdmin(handlers.CreateCarHandler)))
+	mux.HandleFunc("/api/admin/cars/", middleware.RequireAuth(middleware.RequireAdmin(handlers.AdminCarItemRouter)))
 	mux.HandleFunc("/api/cart/", middleware.RequireAuth(handlers.CartItemRouter))
 
 	mux.HandleFunc("/api/orders", middleware.RequireAuth(func(w http.ResponseWriter, r *http.Request) {
