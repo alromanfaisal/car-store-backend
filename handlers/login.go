@@ -14,7 +14,6 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-
 type LoginRequest struct {
 	Email    string `json:"email"`
 	Password string `json:"password"`
@@ -48,7 +47,7 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// ডাটাবেজ থেকে এই email এর ইউজার খোঁজা
-		var userID int
+	var userID int
 	var name string
 	var passwordHash string
 	var isAdmin bool
